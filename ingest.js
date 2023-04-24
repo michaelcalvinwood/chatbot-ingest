@@ -9,6 +9,7 @@ const cors = require('cors');
 const fs = require('fs');
 
 const formidable = require('formidable');
+const jwt = require('./utils/jwt');
 
 const app = express();
 app.use(express.static('public'));
@@ -27,6 +28,30 @@ const ingestPdf = async (fileName) => {
 
 const fileUpload = (req, res) => {
     return new Promise(async (resolve, reject) => {
+        const { bt } = req.query;
+
+        console.log('bt', bt);
+        const tokenInfo = jwt.extractToken(bt, true);
+        if (!tokenInfo.status) {
+            res.status(401).json('unauthorized');
+            resolve('error 401 unauthorized');
+            return;
+        }
+
+        const token = tokenInfo.msg;
+
+        console.log('token', token);
+
+        if (token.ingest !== hostname) {
+            res.status(400).json('bad request');
+            resolve('error 400 bad request');
+            return;
+        }
+
+        res.status(200).json('ok');
+        return resolve('ok');
+
+
         var form = new formidable.IncomingForm();
         form.parse(req, async function (err, fields, data) {
             console.log('form data', data);
