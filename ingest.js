@@ -1,5 +1,8 @@
+require('dotenv').config();
+const { SERVER_SERIES } = process.env;
+const serverSeries = Number(SERVER_SERIES);
+
 const listenPort = 6201;
-const hostname = 'ingest-1.instantchatbot.net'
 const privateKeyPath = `/home/sslkeys/instantchatbot.net.key`;
 const fullchainPath = `/home/sslkeys/instantchatbot.net.pem`;
 
@@ -20,8 +23,13 @@ app.get('/', (req, res) => {
     res.send('Hello, World!');
 });
 
-const ingestPdf = async (fileName) => {
-    console.log('ingest', fileName);
+const ingestPdf = async (fileName, origName, token) => {
+    console.log('ingest', fileName, origName);
+
+
+    // generate a document id
+
+    // add document to content table in chunks
 
     return;
 }
@@ -42,19 +50,15 @@ const fileUpload = (req, res) => {
 
         console.log('token', token);
 
-        if (token.ingest !== hostname) {
+        if (token.serverSeries !== serverSeries) {
             res.status(400).json('bad request');
             resolve('error 400 bad request');
             return;
         }
 
-        res.status(200).json('ok');
-        return resolve('ok');
-
-
         var form = new formidable.IncomingForm();
         form.parse(req, async function (err, fields, data) {
-            console.log('form data', data);
+            //console.log('form data', data);
             if (err) {
                 console.error(err);
                 res.status(500).json('form error');
@@ -62,7 +66,7 @@ const fileUpload = (req, res) => {
                 return;
             }
             const fileName = data['File[]'].filepath;
-            
+            const origName = data['File[]'].originalFilename;
             // let input = fs.readFileSync(fileName, "utf-8");
             // if (!input) {
             //     res.status(400).json('no input')
@@ -73,7 +77,7 @@ const fileUpload = (req, res) => {
              * Process input here
              */
             
-            await ingestPdf(fileName);
+            await ingestPdf(fileName, origName);
             // remove file
             fs.unlinkSync(fileName);
 
