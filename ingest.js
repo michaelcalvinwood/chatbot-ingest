@@ -88,7 +88,27 @@ const fileUpload = (req, res) => {
     })
 }
 
+const presignedPostUrl = (req, res) => {
+    return new Promise((resolve, reject) => {
+        let url;
+
+
+        res.status(200).json(url);
+        resolve('ok');
+    })
+}
+
+const ingestS3Object = (req, res) => {
+    return new Promise((resolve, reject) => {
+
+        res.status(200).json('ok');
+        resolve('ok');
+    })
+}
+
 app.post('/fileUpload', (req, res) => fileUpload(req, res));
+app.post('/presignedPostUrl', (req, res) => presignedPostUrl);
+app.post('/ingestS3Object', (req, res) => ingestS3Object);
 
 const httpsServer = https.createServer({
     key: fs.readFileSync(privateKeyPath),
