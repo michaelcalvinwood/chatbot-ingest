@@ -22,8 +22,10 @@ exports.createCollection = async (host, port, collectionName, size, onDiskPayloa
     //console.log('onDiskPayload', onDiskPayload);
 
     if (onDiskPayload) request.data.on_disk_payload = true;
-
-
         
     return promisfiedAxios(request);   
+}
+
+exports.createOpenAICollection = async (botId, vectorHost, vectorPort, diskBased = false) => {
+    return this.createCollection(vectorHost, vectorPort, botId, 1536, diskBased);
 }
