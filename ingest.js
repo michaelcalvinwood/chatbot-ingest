@@ -98,16 +98,18 @@ const ingestPdf = async (fileName, origName, token, size) => {
         data = data.replaceAll("-\n", "").replaceAll("\n", "");
         const documentId = uuidv4();
         await addDocumentToBot(documentId, token.botId, origName, 'PDF', size );
+
+         // split data into chunks
+
+        // foreach chunk
+            // add to chunks-1.instant...
+            // add to qdrant-1.instant...
     } catch(err) {
         console.error(err);
         return false;
     }
 
-    // split data into chunks
-
-    // foreach chunk
-        // add to chunks-1.instant...
-        // add to qdrant-1.instant...
+   
 
     return true;
 }
