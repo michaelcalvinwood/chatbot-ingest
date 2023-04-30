@@ -22,8 +22,10 @@ exports.query = (db, query) => {
             return reject(err);
         }
         // rows fetch
-        console.log(data);
+        //console.log(data);
         return resolve(data);
     });
     })
   }
+
+  exports.escape = str => mysql.escape(str);

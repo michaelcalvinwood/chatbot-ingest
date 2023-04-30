@@ -154,6 +154,9 @@ exports.uploadFile = async (s3Client, filename, bucketFolder, bucketFileName) =>
 };
 
 exports.fileSize = (s3Client, Key) => {
+    if (Key.startsWith('/')) Key = Key.substring(1);
+
+    console.log('fileSize', Key);
     return new Promise((resolve, reject) => {
         s3Client.headObject({Bucket: s3Client.meta.S3_BUCKET, Key}, (err, data) => {
             if (err) {
@@ -161,7 +164,7 @@ exports.fileSize = (s3Client, Key) => {
                 reject(err);
                 return;
             }
-            console.log(data);
+            //console.log(data);
             resolve(data.ContentLength);
             return;
         })

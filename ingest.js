@@ -12,6 +12,7 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const luxon = require('luxon');
 
 const formidable = require('formidable');
 const jwt = require('./utils/jwt');
@@ -27,6 +28,16 @@ app.use(cors());
 app.get('/', (req, res) => {
     res.send('Hello, World!');
 });
+
+const {S3_ENDPOINT, S3_ENDPOINT_DOMAIN, S3_REGION, S3_KEY, S3_SECRET, S3_BUCKET} = process.env;
+const s3Client = s3.client(S3_ENDPOINT, S3_ENDPOINT_DOMAIN, S3_REGION, S3_KEY, S3_SECRET, S3_BUCKET);
+
+// const test = async () => {
+//     const size = await s3.fileSize(s3Client, decodeURIComponent(`5e3af7f2-15e3-40c6-9e0d-a6eb04a3b31a/443ba5ba-6c47-4574-8183-0b4b9c4aaade--Personal%20Summary%20Questionnaire%20-%20Ranger%20Technical%20Resources%20-%20PDF.pdf`));
+//     console.log('size', size);
+// }
+
+// test();
 
 const chunksHost = `chunks-${SERVER_SERIES}.instantchatbot.net`;
 const qdrantHost = `qdrant-${SERVER_SERIES}.instantchatbot.net`;
@@ -48,24 +59,49 @@ async function testDatabaseConnections() {
 
 testDatabaseConnections();
 
+const addDocumentToBot = async (contentId, botId, name, type, size, meta = false, ts = false) => {
+    console.log('addDocumentToBot', contentId, botId, name, type, size, meta, ts);
+    let date;
 
-const ingestPdf = async (fileName, origName, token) => {
+    if (ts) {
+        date = luxon.DateTime.fromSeconds(ts).toISO().replace('T', ' ');
+        date = date.substring(0, date.indexOf('.'));
+    }
+
+    let q;
+
+    if (meta && ts) {
+        q = `INSERT INTO content (content_id, bot_id, name, type, date, ts, meta, size) VALUES
+        ('${contentId}', '${botId}', ${mysql.escape(name)}, '${type}', '${date}', ${ts}, '${meta}', ${size})`;
+    } else if (meta) {
+        q = `INSERT INTO content (content_id, bot_id, name, type, meta, size) VALUES
+        ('${contentId}', '${botId}', ${mysql.escape(name)}, '${type}', '${meta}', ${size})`;
+    } else if (ts) {
+        q = `INSERT INTO content (content_id, bot_id, name, type, date, ts, size) VALUES
+        ('${contentId}', '${botId}', ${mysql.escape(name)}, '${type}', '${date}', ${ts}, ${size})`;
+    } else {
+        q = `INSERT INTO content (content_id, bot_id, name, type, size) VALUES
+        ('${contentId}', '${botId}', ${mysql.escape(name)}, '${type}', ${size})`;
+    }
+
+    return mysql.query(chunksDb, q);
+}
+
+
+const ingestPdf = async (fileName, origName, token, size) => {
     console.log('ingest', fileName, origName);
 
     let data;
 
     try {
         data = await pdf.extractPdf(fileName, true);
+        data = data.replaceAll("-\n", "").replaceAll("\n", "");
+        const documentId = uuidv4();
+        await addDocumentToBot(documentId, token.botId, origName, 'PDF', size );
     } catch(err) {
         console.error(err);
         return false;
     }
-
-    data = datareplaceAll("-\n", "").replaceAll("\n", "");
-
-    // generate a document id
-
-    // add document to bot document list
 
     // split data into chunks
 
@@ -151,10 +187,6 @@ const presignedUrl = (req, res) => {
         }
 
         let url;
-        const {S3_ENDPOINT, S3_ENDPOINT_DOMAIN, S3_REGION, S3_KEY, S3_SECRET, S3_BUCKET} = process.env;
-        console.log('s3', s3);
-
-        const s3Client = s3.client(S3_ENDPOINT, S3_ENDPOINT_DOMAIN, S3_REGION, S3_KEY, S3_SECRET, S3_BUCKET);
         url = await s3.presignedUploadUrl(s3Client, token.botId + '/' + fileName);
         
         res.status(200).json(url);
@@ -186,6 +218,8 @@ const ingestS3Pdf = (req, res) => {
          * TODO: validate that url folder matches token.botId
          */
 
+        const size = await s3.fileSize(s3Client, decodeURIComponent(urlInfo.pathname));
+
          /*
          * TODO Prefetch filesize and see if the account has sufficient tokens
          * if so, decrement tokens and process
@@ -206,7 +240,7 @@ const ingestS3Pdf = (req, res) => {
             return resolve('error 500: could not access uploaded file');
         }
 
-        result = await ingestPdf(fileName, origFileName, token);
+        result = await ingestPdf(fileName, origFileName, token, size);
 
         if (!result) {
             res.status(500).json('could not process pdf');

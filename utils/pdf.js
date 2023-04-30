@@ -26,6 +26,6 @@ exports.extractPdf = (fileName, del = false) => {
         
         console.log(data);
         if (del) deleteFile(fileName);
-        return resolve(data);
+        return resolve(data.text);
     })
 }
