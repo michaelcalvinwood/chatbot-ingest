@@ -30,6 +30,14 @@ app.get('/', (req, res) => {
 const ingestPdf = async (fileName, origName, token) => {
     console.log('ingest', fileName, origName);
 
+    let data;
+
+    try {
+        data = await pdf.extractPdf(fileName, true);
+    } catch(err) {
+        console.error(err);
+        return false;
+    }
 
     // generate a document id
 
@@ -168,7 +176,12 @@ const ingestS3Pdf = (req, res) => {
             return resolve('error 500: could not access uploaded file');
         }
 
-        ingestPdf(fileName, origFileName, token);
+        result = await ingestPdf(fileName, origFileName, token);
+
+        if (!result) {
+            res.status(500).json('could not process pdf');
+            return resolve('error 500: could not process pdf');
+        }
 
         res.status(200).json('ok');
         resolve('ok');
