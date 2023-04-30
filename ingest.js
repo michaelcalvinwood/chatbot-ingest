@@ -21,6 +21,7 @@ const pdf = require('./utils/pdf');
 const mysql = require('./utils/mysql');
 const nlp = require('./utils/nlp');
 const qdrant = require('./utils/qdrant');
+const openai = require('./utils/openai');
 
 const app = express();
 app.use(express.static('public'));
@@ -59,14 +60,42 @@ async function testDatabaseConnections() {
 
     try {
         //result = await qdrant.createCollection(qdrantHost, 6333, 'test', 24);
-        result = await qdrant.collectionInfo(qdrantHost, 6333, 'test');
-        console.log(result);
+        //result = await qdrant.collectionInfo(qdrantHost, 6333, 'test');
+        //console.log(result);
     } catch(err) {
         console.error('qdrant', err.response.data);
     }
 }
 
 testDatabaseConnections();
+
+const storeDocumentInVectorDatabase = async (documentId, data, aiKey) => {
+    try {
+        const chunks = nlp.getChunks(data);
+        console.log(chunks);
+       
+        for (let i = 0; i < chunks.length; ++i) {
+            const embedding = await openai.getEmbedding(aiKey, chunks[i]);
+            
+            console.log('embedding', embedding);
+            break;     
+            // get vector
+
+            // insert chunk
+
+            // 
+
+        }
+         // split data into chunks
+
+        // foreach chunk
+            // add to chunks-1.instant...
+            // add to qdrant-1.instant...
+    } catch (err) {
+        console.error(err);
+        return false;
+    }
+}
 
 const addDocumentToBot = async (contentId, botId, name, type, size, meta = false, ts = false) => {
     console.log('addDocumentToBot', contentId, botId, name, type, size, meta, ts);
@@ -98,7 +127,7 @@ const addDocumentToBot = async (contentId, botId, name, type, size, meta = false
 
 
 const ingestPdf = async (fileName, origName, token, size, meta = false, ts = false) => {
-    console.log('ingest', fileName, origName);
+    console.log('ingest', fileName, origName, token.openAIKeys);
 
     let data;
 
@@ -107,23 +136,8 @@ const ingestPdf = async (fileName, origName, token, size, meta = false, ts = fal
         data = data.replaceAll("-\n", "").replaceAll("\n", "");
         const documentId = uuidv4();
         await addDocumentToBot(documentId, token.botId, origName, 'PDF', size, meta, ts );
-
-        const chunks = nlp.getChunks(data);
-        console.log(chunks);
-
-        for (let i = 0; i < chunks.length; ++i) {
-            // get vector
-
-            // insert chunk
-
-            // 
-
-        }
-         // split data into chunks
-
-        // foreach chunk
-            // add to chunks-1.instant...
-            // add to qdrant-1.instant...
+        await storeDocumentInVectorDatabase(documentId, data, token.openAIKeys[0]);
+       
     } catch(err) {
         console.error(err);
         return false;
