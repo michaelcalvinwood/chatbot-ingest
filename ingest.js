@@ -39,11 +39,21 @@ const ingestPdf = async (fileName, origName, token) => {
         return false;
     }
 
+    data = datareplaceAll("-\n", "").replaceAll("\n", "");
+
     // generate a document id
 
-    // add document to content table in chunks
+    // add document to bot document list
 
-    return;
+    // split data into chunks
+
+    // foreach chunk
+        // add to chunks-1.instant...
+        // add to qdrant-1.instant...
+
+    
+
+    return true;
 }
 
 const handleSuppliedToken = (bt, res) => {
