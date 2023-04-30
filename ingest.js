@@ -17,6 +17,7 @@ const formidable = require('formidable');
 const jwt = require('./utils/jwt');
 const s3 = require('./utils/s3');
 const pdf = require('./utils/pdf');
+const mysql = require('./utils/mysql');
 
 const app = express();
 app.use(express.static('public'));
@@ -26,6 +27,27 @@ app.use(cors());
 app.get('/', (req, res) => {
     res.send('Hello, World!');
 });
+
+const chunksHost = `chunks-${SERVER_SERIES}.instantchatbot.net`;
+const qdrantHost = `qdrant-${SERVER_SERIES}.instantchatbot.net`;
+const appHost = `app-${SERVER_SERIES}.instantchatbot.net`;
+
+const { CHUNKS_MYSQL_PASSWORD} = process.env;
+const chunksDb = mysql.connect(chunksHost, 'chunks', CHUNKS_MYSQL_PASSWORD, 'chunks');
+
+
+async function testDatabaseConnections() {
+    let result;
+    try {
+        result = await mysql.query(chunksDb, "SHOW DATABASES");
+        console.log(result);
+    } catch (err) {
+    
+    }
+}
+
+testDatabaseConnections();
+
 
 const ingestPdf = async (fileName, origName, token) => {
     console.log('ingest', fileName, origName);
@@ -50,8 +72,6 @@ const ingestPdf = async (fileName, origName, token) => {
     // foreach chunk
         // add to chunks-1.instant...
         // add to qdrant-1.instant...
-
-    
 
     return true;
 }
