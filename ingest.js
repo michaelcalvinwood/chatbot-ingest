@@ -69,28 +69,32 @@ async function testDatabaseConnections() {
 
 testDatabaseConnections();
 
-const storeDocumentInVectorDatabase = async (documentId, data, aiKey) => {
+const insertChunkIntoDb = async (chunkId, contentId, text, embedding, meta = '') => {
+    const q = `INSERT INTO chunk (chunk_id, content_id, text, vector, meta) VALUES
+    ('${chunkId}', '${contentId}', ${mysql.escape(text)}, ${mysql.escape(JSON.stringify(embedding))}, ${mysql.escape(meta)})`;
+
+    return mysql.query(chunksDb, q);
+} 
+
+const storeDocumentInVectorDatabase = async (documentId, data, botId, aiKey, meta = '') => {
     try {
         const chunks = nlp.getChunks(data);
         console.log(chunks);
        
         for (let i = 0; i < chunks.length; ++i) {
             const embedding = await openai.getEmbedding(aiKey, chunks[i]);
-            
-            console.log('embedding', embedding);
-            break;     
-            // get vector
-
-            // insert chunk
-
-            // 
-
+            const chunkId = uuidv4();
+            await insertChunkIntoDb(chunkId, documentId, chunks[i], embedding, meta);
+            try {
+                await qdrant.addOpenAIPoint(qdrantHost, 6333, aiKey, botId, chunkId, chunks[i]);
+            } catch (err) {
+                if (err.response && err.response.data) console.error(err.response.data);
+                else console.error(err);
+                break;
+            }
         }
-         // split data into chunks
-
-        // foreach chunk
-            // add to chunks-1.instant...
-            // add to qdrant-1.instant...
+        const result = await qdrant.collectionInfo(qdrantHost, 6333, botId);
+        console.log('qdrant info', result);
     } catch (err) {
         console.error(err);
         return false;
@@ -128,6 +132,9 @@ const addDocumentToBot = async (contentId, botId, name, type, size, meta = false
 
 const ingestPdf = async (fileName, origName, token, size, meta = false, ts = false) => {
     console.log('ingest', fileName, origName, token.openAIKeys);
+    let result = await qdrant.collectionInfo(qdrantHost, 6333, token.botId);
+
+    console.log(result);
 
     let data;
 
@@ -136,7 +143,7 @@ const ingestPdf = async (fileName, origName, token, size, meta = false, ts = fal
         data = data.replaceAll("-\n", "").replaceAll("\n", "");
         const documentId = uuidv4();
         await addDocumentToBot(documentId, token.botId, origName, 'PDF', size, meta, ts );
-        await storeDocumentInVectorDatabase(documentId, data, token.openAIKeys[0]);
+        await storeDocumentInVectorDatabase(documentId, data, token.botId, token.openAIKeys[0]);
        
     } catch(err) {
         console.error(err);

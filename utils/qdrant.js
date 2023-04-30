@@ -2,6 +2,7 @@ require ('dotenv').config();
 const axios = require('axios');
 const { Configuration, OpenAIApi } = require("openai");
 const { v4: uuidv4 } = require('uuid');
+const openai = require('./openai');
 
 exports.createCollection = async (host, port, collectionName, size, onDiskPayload = false, distance = 'Cosine') => {
     const request = {
@@ -49,7 +50,11 @@ exports.deleteCollection = async (host, port, collectionName) => {
 }
 
 exports.addPoint = async (host, port, collectionName, point) => {
+    console.log('addPoint', host, port, collectionName, point);
+
     const { id, vector, payload } = point;
+
+    console.log('vector', vector);
     
     const request = {
         url: `http://${host}:${port}/collections/${collectionName}/points`,
@@ -71,4 +76,29 @@ exports.addPoint = async (host, port, collectionName, point) => {
     if (payload) request.data.points[0].payload = payload;
 
     return axios(request);
+}
+
+exports.addOpenAIPoint = async (host, port, openAiKey, collectionName, pointId, input, payload = false) => {
+    let vector = await openai.getEmbedding(openAiKey, input);
+
+    if (vector === false) return false;
+
+    if (payload) {
+        await this.addPoint(host, port, collectionName, 
+            {
+                id: pointId, 
+                vector, 
+                payload
+            }
+        );
+    } else {
+        await this.addPoint(host, port, collectionName, 
+            {
+                id: pointId, 
+                vector, 
+            }
+        );
+    }
+
+    return vector;
 }

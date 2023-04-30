@@ -16,5 +16,5 @@ exports.getEmbedding = async (openAiKey, input) => {
         return false;
       }
       
-      return embeddingResponse.data.data;
+      return embeddingResponse.data.data[0].embedding;
 }
