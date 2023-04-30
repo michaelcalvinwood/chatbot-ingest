@@ -19,6 +19,7 @@ const jwt = require('./utils/jwt');
 const s3 = require('./utils/s3');
 const pdf = require('./utils/pdf');
 const mysql = require('./utils/mysql');
+const nlp = require('./utils/nlp');
 
 const app = express();
 app.use(express.static('public'));
@@ -99,6 +100,8 @@ const ingestPdf = async (fileName, origName, token, size) => {
         const documentId = uuidv4();
         await addDocumentToBot(documentId, token.botId, origName, 'PDF', size );
 
+        const chunks = nlp.getChunks(data);
+        console.log(chunks);
          // split data into chunks
 
         // foreach chunk
