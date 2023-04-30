@@ -29,3 +29,12 @@ exports.createCollection = async (host, port, collectionName, size, onDiskPayloa
 exports.createOpenAICollection = async (botId, vectorHost, vectorPort, diskBased = false) => {
     return this.createCollection(vectorHost, vectorPort, botId, 1536, diskBased);
 }
+
+exports.collectionInfo = async (host, port, collectionName) => {
+    const request = {
+        url: `http://${host}:${port}/collections/${collectionName}`,
+        method: 'get'
+    }
+
+    return promisfiedAxios(request);
+}
