@@ -47,3 +47,28 @@ exports.deleteCollection = async (host, port, collectionName) => {
 
     return axios(request);
 }
+
+exports.addPoint = async (host, port, collectionName, point) => {
+    const { id, vector, payload } = point;
+    
+    const request = {
+        url: `http://${host}:${port}/collections/${collectionName}/points`,
+        method: 'put',
+        headers: {
+            'Content-Type': 'application/json;charset=UTF-8',
+            "Access-Control-Allow-Origin": "*",
+        },
+        data: {
+            points: [
+                {
+                    id, vector
+
+                }
+            ]
+        }
+    }
+
+    if (payload) request.data.points[0].payload = payload;
+
+    return axios(request);
+}
