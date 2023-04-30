@@ -23,7 +23,7 @@ exports.createCollection = async (host, port, collectionName, size, onDiskPayloa
 
     if (onDiskPayload) request.data.on_disk_payload = true;
         
-    return promisfiedAxios(request);   
+    return axios(request);   
 }
 
 exports.createOpenAICollection = async (botId, vectorHost, vectorPort, diskBased = false) => {
@@ -36,5 +36,14 @@ exports.collectionInfo = async (host, port, collectionName) => {
         method: 'get'
     }
 
-    return promisfiedAxios(request);
+    return axios(request);
+}
+
+exports.deleteCollection = async (host, port, collectionName) => {
+    const request = {
+        url: `http://${host}:${port}/collections/${collectionName}`,
+        method: 'DELETE'
+    }
+
+    return axios(request);
 }

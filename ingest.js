@@ -20,6 +20,7 @@ const s3 = require('./utils/s3');
 const pdf = require('./utils/pdf');
 const mysql = require('./utils/mysql');
 const nlp = require('./utils/nlp');
+const qdrant = require('./utils/qdrant');
 
 const app = express();
 app.use(express.static('public'));
@@ -52,9 +53,16 @@ async function testDatabaseConnections() {
     let result;
     try {
         result = await mysql.query(chunksDb, "SHOW DATABASES");
-        console.log(result);
     } catch (err) {
     
+    }
+
+    try {
+        //result = await qdrant.createCollection(qdrantHost, 6333, 'test', 24);
+        result = await qdrant.collectionInfo(qdrantHost, 6333, 'test');
+        console.log(result);
+    } catch(err) {
+        console.error('qdrant', err.response.data);
     }
 }
 
@@ -89,7 +97,7 @@ const addDocumentToBot = async (contentId, botId, name, type, size, meta = false
 }
 
 
-const ingestPdf = async (fileName, origName, token, size) => {
+const ingestPdf = async (fileName, origName, token, size, meta = false, ts = false) => {
     console.log('ingest', fileName, origName);
 
     let data;
@@ -98,10 +106,19 @@ const ingestPdf = async (fileName, origName, token, size) => {
         data = await pdf.extractPdf(fileName, true);
         data = data.replaceAll("-\n", "").replaceAll("\n", "");
         const documentId = uuidv4();
-        await addDocumentToBot(documentId, token.botId, origName, 'PDF', size );
+        await addDocumentToBot(documentId, token.botId, origName, 'PDF', size, meta, ts );
 
         const chunks = nlp.getChunks(data);
         console.log(chunks);
+
+        for (let i = 0; i < chunks.length; ++i) {
+            // get vector
+
+            // insert chunk
+
+            // 
+
+        }
          // split data into chunks
 
         // foreach chunk
