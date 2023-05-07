@@ -49,9 +49,9 @@ const appHost = `app-${SERVER_SERIES}.instantchatbot.net`;
 const { CHUNKS_MYSQL_PASSWORD} = process.env;
 const chunksDb = mysql.connect(chunksHost, 'chunks', CHUNKS_MYSQL_PASSWORD, 'chunks');
 
-const addContent = async (contentId, botId, contentName, contentType, s3URL, size, meta = '', date = '9999-12-31 23:59:59', ts = 99999999999) => {
-    const q = `INSERT INTO content (content_id, bot_id, name, type, url, size, meta, date, ts) VALUES 
-    ('${contentId}', '${botId}', '${contentName}', '${contentType}', '${s3URL}', ${size}, '${meta}', '${date}', ${ts})`;
+const addContent = async (contentId, botId, contentName, contentType, s3URL, size, description = '', meta = '', date = '9999-12-31 23:59:59', ts = 99999999999) => {
+    const q = `INSERT INTO content (content_id, bot_id, name, type, url, size, context, meta, date, ts) VALUES 
+    ('${contentId}', '${botId}', '${contentName}', '${contentType}', '${s3URL}', ${size}, ${mysql.escape(description)},'${meta}', '${date}', ${ts})`;
 
     return mysql.query(chunksDb, q);
 }
@@ -107,36 +107,14 @@ const storeDocumentInVectorDatabase = async (documentId, data, botId, aiKey, met
     }
 }
 
-const addDocumentToBot = async (contentId, botId, name, type, size, meta = false, ts = false) => {
-    console.log('addDocumentToBot', contentId, botId, name, type, size, meta, ts);
-    let date;
-
-    if (ts) {
-        date = luxon.DateTime.fromSeconds(ts).toISO().replace('T', ' ');
-        date = date.substring(0, date.indexOf('.'));
-    }
-
-    let q;
-
-    if (meta && ts) {
-        q = `INSERT INTO content (content_id, bot_id, name, type, date, ts, meta, size) VALUES
-        ('${contentId}', '${botId}', ${mysql.escape(name)}, '${type}', '${date}', ${ts}, '${meta}', ${size})`;
-    } else if (meta) {
-        q = `INSERT INTO content (content_id, bot_id, name, type, meta, size) VALUES
-        ('${contentId}', '${botId}', ${mysql.escape(name)}, '${type}', '${meta}', ${size})`;
-    } else if (ts) {
-        q = `INSERT INTO content (content_id, bot_id, name, type, date, ts, size) VALUES
-        ('${contentId}', '${botId}', ${mysql.escape(name)}, '${type}', '${date}', ${ts}, ${size})`;
-    } else {
-        q = `INSERT INTO content (content_id, bot_id, name, type, size) VALUES
-        ('${contentId}', '${botId}', ${mysql.escape(name)}, '${type}', ${size})`;
-    }
-
-    return mysql.query(chunksDb, q);
-}
 
 
-const ingestPdf = async (fileName, origName, token, size, meta = false, ts = false) => {
+
+const ingestPdf = async (fileName, origName, token, size, description, meta = false, ts = false) => {
+   const { botId, openAIKeys } = token;
+    const documentId = uuidv4();
+    await addContent(documentId, botId, origName, 'PDF', url, size, description);
+   
     console.log('ingest', fileName, origName, token.openAIKeys);
     console.log('CHECK TO SEE IF THE ACCOUNT HAS SUFFICIENT CREDITS. IF NOT, DELETE FROM S3, SEND EMAIL, AND RETURN.')
     return;
@@ -150,7 +128,7 @@ const ingestPdf = async (fileName, origName, token, size, meta = false, ts = fal
     try {
         data = await pdf.extractPdf(fileName, true);
         data = data.replaceAll("-\n", "").replaceAll("\n", "");
-        const documentId = uuidv4();
+        
         await addDocumentToBot(documentId, token.botId, origName, 'PDF', size, meta, ts );
         await storeDocumentInVectorDatabase(documentId, data, token.botId, token.openAIKeys[0]);
        
@@ -244,11 +222,14 @@ const ingestS3Pdf = async (req, res) => {
         const token = handleSuppliedToken(bt, res);
         if (!token) return res.status(400).json('bad request');
   
-        const { url } = req.body;
-        if (!url) return res.status(400).json('bad request');
+        const { url, description } = req.body;
+        if (!url || !description) return res.status(400).json('bad request');
             
         const urlInfo = new URL(url);
         console.log('urlInfo', urlInfo);
+
+        if (urlInfo.host !== 'instantchatbot.nyc3.digitaloceanspaces.com') return res.status(401).json('unauthorized');
+        
         const fullFileName = path.basename(urlInfo.pathname);
         const loc = fullFileName.indexOf('--');
         const origFileName = fullFileName.substring(loc+2);
@@ -278,7 +259,7 @@ const ingestS3Pdf = async (req, res) => {
             return resolve('error 500: could not access uploaded file');
         }
 
-        ingestPdf(fileName, origFileName, token, size);
+        ingestPdf(fileName, origFileName, token, size, url, description);
 
         return res.status(200).json('ok');
         
