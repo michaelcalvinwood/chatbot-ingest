@@ -22,6 +22,12 @@ exports.extractToken = (info, expiredCheck = false) => {
     return {status: true, msg: token};
 }
 
+exports.getToken = (info, expiredCheck = false) => {
+    const data = this.extractToken(info, expiredCheck);
+    if (!data.status) return false;
+    else return data.msg;
+}
+
 /*
  * expires (3h, 2d, 1y)
  */

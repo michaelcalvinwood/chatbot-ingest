@@ -102,3 +102,40 @@ exports.addOpenAIPoint = async (host, port, openAiKey, collectionName, pointId, 
 
     return vector;
 }
+
+exports.getContexts = async (vectorHost, vectorPort, botId, openAIKey, query, limit = 3) => {
+
+    const vector = await openai.getEmbedding(openAIKey, query);
+ 
+    console.log('vector.length', vector.length)
+
+    const request = {
+        url: `http://${vectorHost}:${vectorPort}/collections/${botId}/points/search`,
+        method: 'post',
+        headers: {
+            'Content-Type': 'application/json;charset=UTF-8',
+            "Access-Control-Allow-Origin": "*",
+        },
+        data: {
+            vector,
+            limit,
+            "with_payload": true
+        }
+    }
+
+    let response;
+
+    try {
+        response = await axios(request);
+        //console.log(response.data);
+        const results = response.data.result;
+        const contextIds = [];
+        for (let i = 0; i < results.length; ++i) {
+            contextIds.push(results[i].id);
+        }
+        return contextIds;
+    } catch (err) {
+        console.error(err);
+        return [];
+    }
+}

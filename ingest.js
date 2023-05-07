@@ -49,6 +49,12 @@ const appHost = `app-${SERVER_SERIES}.instantchatbot.net`;
 const { CHUNKS_MYSQL_PASSWORD} = process.env;
 const chunksDb = mysql.connect(chunksHost, 'chunks', CHUNKS_MYSQL_PASSWORD, 'chunks');
 
+const addContent = async (contentId, botId, contentName, contentType, s3URL, size, meta = '', date = '9999-12-31 23:59:59', ts = 99999999999) => {
+    const q = `INSERT INTO content (content_id, bot_id, name, type, url, size, meta, date, ts) VALUES 
+    ('${contentId}', '${botId}', '${contentName}', '${contentType}', '${s3URL}', ${size}, '${meta}', '${date}', ${ts})`;
+
+    return mysql.query(chunksDb, q);
+}
 
 async function testDatabaseConnections() {
     let result;
@@ -132,6 +138,9 @@ const addDocumentToBot = async (contentId, botId, name, type, size, meta = false
 
 const ingestPdf = async (fileName, origName, token, size, meta = false, ts = false) => {
     console.log('ingest', fileName, origName, token.openAIKeys);
+    console.log('CHECK TO SEE IF THE ACCOUNT HAS SUFFICIENT CREDITS. IF NOT, DELETE FROM S3, SEND EMAIL, AND RETURN.')
+    return;
+
     let result = await qdrant.collectionInfo(qdrantHost, 6333, token.botId);
 
     console.log(result);
@@ -215,43 +224,29 @@ const fileUpload = (req, res) => {
     })
 }
 
-const presignedUrl = (req, res) => {
-    return new Promise(async (resolve, reject) => {
+const presignedUrl = async (req, res) => {
         const { bt } = req.query;
         const token = handleSuppliedToken(bt, res);
-        if (!token) {
-            res.status(400).json('bad request');
-            return resolve('error bad token');
-        }
+        if (!token) return res.status(400).json('bad request');
+            
+        console.log('presignedUrl token', token);
         const { fileName } = req.body;
-        if (!fileName) {
-            res.status(400).json('bad request');
-            return resolve('error bad request');
-        }
-
+        if (!fileName) return res.status(400).json('bad request');
+           
         let url;
         url = await s3.presignedUploadUrl(s3Client, token.botId + '/' + fileName);
         
-        res.status(200).json(url);
-        resolve('ok');
-    })
+        return res.status(200).json(url);
 }
 
-const ingestS3Pdf = (req, res) => {
-    return new Promise(async (resolve, reject) => {
+const ingestS3Pdf = async (req, res) => {
         const { bt } = req.query;
         const token = handleSuppliedToken(bt, res);
-        if (!token) {
-            res.status(400).json('bad request');
-            return resolve('error bad token');
-        }
-        
+        if (!token) return res.status(400).json('bad request');
+  
         const { url } = req.body;
-        if (!url) {
-            res.status(400).json('bad request');
-            return resolve('error bad token');
-        }
-
+        if (!url) return res.status(400).json('bad request');
+            
         const urlInfo = new URL(url);
         console.log('urlInfo', urlInfo);
         const fullFileName = path.basename(urlInfo.pathname);
@@ -283,16 +278,10 @@ const ingestS3Pdf = (req, res) => {
             return resolve('error 500: could not access uploaded file');
         }
 
-        result = await ingestPdf(fileName, origFileName, token, size);
+        ingestPdf(fileName, origFileName, token, size);
 
-        if (!result) {
-            res.status(500).json('could not process pdf');
-            return resolve('error 500: could not process pdf');
-        }
-
-        res.status(200).json('ok');
-        resolve('ok');
-    })
+        return res.status(200).json('ok');
+        
 }
 
 app.post('/fileUpload', (req, res) => fileUpload(req, res));

@@ -16,31 +16,51 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
 const {S3_ENDPOINT, S3_ENDPOINT_DOMAIN, S3_REGION, S3_KEY, S3_SECRET, S3_BUCKET} = process.env;
 
+exports.emptyS3Directory = async (dir, s3Client) => {
+  const Bucket = s3Client.meta.S3_BUCKET;
+  const listParams = {
+      Bucket,
+      Prefix: dir,
+      MaxKeys: 1000
+  };
 
-const emptyS3Directory = async (bucket, dir, s3Client) => {
-    const listParams = {
-        Bucket: bucket,
-        Prefix: dir
-    };
+  let command = new ListObjectsV2Command(listParams);
+
+  const data = await s3Client.send(command);
   
-    const listedObjects = await s3Client.listObjectsV2(listParams).promise();
-  
-    if (listedObjects.Contents.length === 0) return;
-  
-    const deleteParams = {
-        Bucket: bucket,
-        Delete: { Objects: [] }
-    };
-  
-    listedObjects.Contents.forEach(({ Key }) => {
-        deleteParams.Delete.Objects.push({ Key });
-    });
-  
-    await s3Client.deleteObjects(deleteParams).promise();
-  
-    if (listedObjects.IsTruncated) await emptyS3Directory(bucket, dir);
+  if (!data.Contents) return;
+  if (data.Contents.length === 0) return;
+
+  let deleteParams = {
+    Bucket,
+    Delete: { Objects: [] }
+  };
+
+  data.Contents.forEach(({ Key }) => {
+    if (Key !== `${dir}/`) deleteParams.Delete.Objects.push({ Key });
+  });
+
+
+  if (deleteParams.Delete.Objects.length) {
+    command = new DeleteObjectsCommand(deleteParams);
+    await s3Client.send(command);
+  } 
+
+  if (data.IsTruncated) await exports.emptyS3Directory(dir, s3Client);
+  else {
+    deleteParams = {
+      Bucket,
+      Delete: {Objects: [{Key: `${dir}/`}]}
+    }
+
+    command = new DeleteObjectsCommand(deleteParams);
+
+    await s3Client.send(command);
   }
 
+
+  return true;
+}
 exports.getPostSignedUrl = async (s3Client, folder, Expires = 3600) => {
     const Bucket = s3Client.meta.S3_BUCKET;
     const params = {

@@ -3,7 +3,7 @@ const its = require( 'wink-nlp/src/its.js' );
 const model = require( 'wink-eng-lite-web-model' );
 const nlp = winkNLP( model );
 
-exports.getChunks  = (text, chunkSize = 600, overlapPercent = .25) => { 
+exports.getChunks  = (text, chunkSize = 700, overlapPercent = .33) => { 
     const doc = nlp.readDoc( text );
     const sentences = doc.sentences().out();
     let index = 0;
