@@ -13,6 +13,7 @@ const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const luxon = require('luxon');
+const axios = require('axios');
 
 const formidable = require('formidable');
 const jwt = require('./utils/jwt');
@@ -114,9 +115,15 @@ const ingestPdf = async (fileName, origName, token, size, description, meta = fa
    const { botId, openAIKeys } = token;
     const documentId = uuidv4();
     await addContent(documentId, botId, origName, 'PDF', url, size, description);
-   
+
+    // get account info from app-1/accountInfo
+        // /accountInfo updates max_storage_mb if needed, returns all stats including credit, creditNeeded, storage_mb, max_storage_mb, upload_mb etc.
+        // use creditNeeded + (size * uploadRate) to determine if credit is sufficient
+        // if insufficient credit remove document and send email to user
+        // else send upload_mb to app-1 then continue 
+
+
     console.log('ingest', fileName, origName, token.openAIKeys);
-    console.log('CHECK TO SEE IF THE ACCOUNT HAS SUFFICIENT CREDITS. IF NOT, DELETE FROM S3, SEND EMAIL, AND RETURN.')
     return;
 
     let result = await qdrant.collectionInfo(qdrantHost, 6333, token.botId);
@@ -136,8 +143,6 @@ const ingestPdf = async (fileName, origName, token, size, description, meta = fa
         console.error(err);
         return false;
     }
-
-   
 
     return true;
 }
@@ -220,10 +225,10 @@ const presignedUrl = async (req, res) => {
 const ingestS3Pdf = async (req, res) => {
         const { bt } = req.query;
         const token = handleSuppliedToken(bt, res);
-        if (!token) return res.status(400).json('bad request');
+        if (!token) return res.status(400).json('bad token request');
   
         const { url, description } = req.body;
-        if (!url || !description) return res.status(400).json('bad request');
+        if (!url || typeof description === 'undefined') return res.status(400).json('bad input request');
             
         const urlInfo = new URL(url);
         console.log('urlInfo', urlInfo);
@@ -239,18 +244,28 @@ const ingestS3Pdf = async (req, res) => {
 
         const size = await s3.fileSize(s3Client, decodeURIComponent(urlInfo.pathname));
 
-         /*
-         * TODO Prefetch filesize and see if the account has sufficient tokens
-         * if so, decrement tokens and process
-         * else 
-         *      send email alerting to the issue
-         *      delete the resource from S3 bucket
-         *      send error message
-         */
+        let request = {
+            url: `https://app-${SERVER_SERIES}.instantchatbot.net:6250/addStorage`,
+            method: 'post',
+            data: {
+                size,
+                botToken: bt
+            }
+        }
 
-        const fileName = `/home/tmp/${uuidv4()}.pdf`;
         let result;
 
+        try {
+            result = await axios(request);
+        } catch (err) {
+            console.error(err);
+            return res.status(500).json('Unable to add file size at this time. Please try again later.')
+        }
+
+
+
+        const fileName = `/home/tmp/${uuidv4()}.pdf`;
+        
         try {
             result = await s3.download(url, fileName);
         } catch (err) {
