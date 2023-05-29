@@ -18,7 +18,7 @@ const axios = require('axios');
 const formidable = require('formidable');
 const jwt = require('./utils/jwt');
 const s3 = require('./utils/s3');
-const pdf = require('./utils/pdf');
+const pdf = require('./utils/pdfjs-dist');
 const mysql = require('./utils/mysql');
 const nlp = require('./utils/nlp');
 const qdrant = require('./utils/qdrant');
@@ -111,7 +111,7 @@ const storeDocumentInVectorDatabase = async (documentId, data, botId, aiKey, met
 
 
 
-const ingestPdf = async (fileName, origName, token, size, description, meta = false, ts = false) => {
+const ingestPdf = async (fileName, origName, token, size, url, description, meta = false, ts = false) => {
    const { botId, openAIKeys } = token;
     const documentId = uuidv4();
     await addContent(documentId, botId, origName, 'PDF', url, size, description);
@@ -128,7 +128,6 @@ const ingestPdf = async (fileName, origName, token, size, description, meta = fa
         data = await pdf.extractPdf(fileName, true);
         data = data.replaceAll("-\n", "").replaceAll("\n", "");
         
-        await addDocumentToBot(documentId, token.botId, origName, 'PDF', size, meta, ts );
         await storeDocumentInVectorDatabase(documentId, data, token.botId, token.openAIKeys[0]);
        
     } catch(err) {

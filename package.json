@@ -24,6 +24,7 @@
     "mysql2": "^3.2.4",
     "openai": "^3.2.1",
     "pdf-extraction": "^1.0.2",
+    "pdfjs-dist": "^3.7.107",
     "wink-eng-lite-web-model": "^1.5.0",
     "wink-nlp": "^1.13.1"
   }
