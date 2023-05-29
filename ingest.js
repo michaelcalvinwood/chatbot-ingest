@@ -116,16 +116,8 @@ const ingestPdf = async (fileName, origName, token, size, description, meta = fa
     const documentId = uuidv4();
     await addContent(documentId, botId, origName, 'PDF', url, size, description);
 
-    // get account info from app-1/accountInfo
-        // /accountInfo updates max_storage_mb if needed, returns all stats including credit, creditNeeded, storage_mb, max_storage_mb, upload_mb etc.
-        // use creditNeeded + (size * uploadRate) to determine if credit is sufficient
-        // if insufficient credit remove document and send email to user
-        // else send upload_mb to app-1 then continue 
-
-
     console.log('ingest', fileName, origName, token.openAIKeys);
-    return;
-
+   
     let result = await qdrant.collectionInfo(qdrantHost, 6333, token.botId);
 
     console.log(result);
@@ -152,7 +144,7 @@ const handleSuppliedToken = (bt, res) => {
     const tokenInfo = jwt.extractToken(bt, true);
     if (!tokenInfo.status) {
         res.status(401).json('unauthorized');
-        resolve('error 401 unauthorized');
+        //resolve('error 401 unauthorized');
         return false;
     }
 
@@ -162,7 +154,7 @@ const handleSuppliedToken = (bt, res) => {
 
     if (token.serverSeries !== serverSeries) {
         res.status(400).json('bad request');
-        resolve('error 400 bad request');
+        //resolve('error 400 bad request');
         return false;
     }
 
@@ -259,10 +251,9 @@ const ingestS3Pdf = async (req, res) => {
             result = await axios(request);
         } catch (err) {
             console.error(err);
-            return res.status(500).json('Unable to add file size at this time. Please try again later.')
+            if (err.response && err.response.status && err.response.status === 402) return res.status(402).json(err.response.data);
+            return res.status(err.response && err.response.status ? err.response.status : 501).json('Unable to add file size at this time. Please try again later.')
         }
-
-
 
         const fileName = `/home/tmp/${uuidv4()}.pdf`;
         
