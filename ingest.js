@@ -279,7 +279,12 @@ const ingestText = async (req, res) => {
 
     const {userId, userName, serverSeries, botId, domains, openAIKeys } = token;
 
-    console.log(token, text);
+    let size = 0;
+    for (let i = 0; i < text.length; ++i) size += text[i].text.length;
+
+    console.log('TOTAL STORAGE', size);
+    return res.status(200).send('ok');
+
 
     for (let i = 0; i < text.length; ++i) {
         const documentId = uuidv4();
