@@ -50,11 +50,11 @@ exports.deleteCollection = async (host, port, collectionName) => {
 }
 
 exports.addPoint = async (host, port, collectionName, point) => {
-    console.log('addPoint', host, port, collectionName, point);
+    //console.log('addPoint', host, port, collectionName, point);
 
     const { id, vector, payload } = point;
 
-    console.log('vector', vector);
+    //console.log('vector', vector);
     
     const request = {
         url: `http://${host}:${port}/collections/${collectionName}/points`,
@@ -79,6 +79,7 @@ exports.addPoint = async (host, port, collectionName, point) => {
 }
 
 exports.addOpenAIPoint = async (host, port, openAiKey, collectionName, pointId, input, payload = false) => {
+    console.log('qdrant addOpenAIPoint input', input);
     let vector = await openai.getEmbedding(openAiKey, input);
 
     if (vector === false) return false;

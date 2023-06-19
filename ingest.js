@@ -86,7 +86,7 @@ const insertChunkIntoDb = async (chunkId, contentId, text, embedding, meta = '')
 const storeDocumentInVectorDatabase = async (documentId, data, botId, aiKey, meta = '') => {
     try {
         const chunks = nlp.getChunks(data);
-        console.log(chunks);
+        console.log('chunks', chunks);
        
         for (let i = 0; i < chunks.length; ++i) {
             const embedding = await openai.getEmbedding(aiKey, chunks[i]);
@@ -270,6 +270,36 @@ const ingestS3Pdf = async (req, res) => {
         
 }
 
+const ingestText = async (req, res) => {
+    const { botToken, description, text } = req.body;
+
+    if (!botToken || typeof description === 'undefined' || !text || !text.length) return res.status(400).json('bad command 1');
+
+    const token = jwt.getToken(botToken);
+
+    const {userId, userName, serverSeries, botId, domains, openAIKeys } = token;
+
+    console.log(token, text);
+
+    for (let i = 0; i < text.length; ++i) {
+        const documentId = uuidv4();
+        try {
+            console.log('storing', documentId, text[i].name);
+            await addContent(documentId, botId, text[i].name, text[i].type, text[i].url ? text[i].url : "", text[i].text.length, text[i].description ? text[i].description : '');
+            let result = await qdrant.collectionInfo(qdrantHost, 6333, botId);
+            console.log('qdrant result', result);
+            await storeDocumentInVectorDatabase(documentId, text[i].text, botId, openAIKeys[0]);
+        } catch (err) {
+            console.error('Could not store', documentId, text[i].name);
+            console.error(err);
+            return res.status(500).json('internal server error');
+        }
+    }
+
+    res.status(200).send('ok');
+}
+
+app.post('/ingestText', (req, res) => ingestText(req, res));
 app.post('/fileUpload', (req, res) => fileUpload(req, res));
 app.post('/presignedUrl', (req, res) => presignedUrl(req, res));
 app.post('/ingestS3Pdf', (req, res) => ingestS3Pdf(req, res));
